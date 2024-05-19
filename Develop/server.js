@@ -24,12 +24,21 @@ app.get('*', (req, res) => {
 });
 
 const readAndWriteJSONFile = (callback) => {
-    fs.readFile(path.join(__dirname, 'db.json'), 'utf8', (err, data) => {
-        if (err) throw err;
+    fs.readFile(path.join(__dirname, 'db', 'db.json'), 'utf8', (err, data) => {
+        if (err) {
+            console.error(err);
+            callback(null, err);
+            return;
+        }
         const notes = JSON.parse(data);
-        callback(notes, (updatedNotes) => {
-            fs.writeFile(path.join(__dirname, 'db.json'), JSON.stringify(updatedNotes, null, 2), (err) => {
-                if (err) throw err;
+        callback(notes, (updatedNotes, cb) => {
+            fs.writeFile(path.join(__dirname, 'db', 'db.json'), JSON.stringify(updatedNotes, null, 2), (err) => {
+                if (err) {
+                    console.error(err);
+                    cb(err);
+                    return;
+                }
+                cb(null);
             });
         });
     });
@@ -37,7 +46,7 @@ const readAndWriteJSONFile = (callback) => {
 
 // API route for getting all notes
 app.get('/api/notes', (req, res) => {
-    fs.readFile(path.join(__dirname, 'db.json'), 'utf8', (err, data) => {
+    fs.readFile(path.join(__dirname, 'db', 'db.json'), 'utf8', (err, data) => {
         if (err) {
             console.error(err);
             return res.status(500).json({ message: "Error reading notes" });
@@ -51,15 +60,14 @@ app.post('/api/notes', (req, res) => {
     const newNote = { ...req.body, id: uuidv4() };
 
     readAndWriteJSONFile((notes, saveNotes) => {
+        // Error handling example
+        if (!newNote.title || !newNote.text) {
+            return res.status(400).json({ message: "Note title and text are required." });
+        }
+
         notes.push(newNote);
-        saveNotes(notes);
-        res.json(newNote);
+        saveNotes(notes, () => {
+            res.json(newNote); // Successfully respond with the new note
+        });
     });
 });
-
-//need error handling
-//need validation?
-//need to delete notes
-//need to edit notes
-//need to save notes
-//need to add a date to the notes
